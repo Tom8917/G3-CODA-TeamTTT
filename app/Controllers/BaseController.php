@@ -7,52 +7,68 @@ use CodeIgniter\HTTP\CLIRequest;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
+use CodeIgniter\HTTP\RedirectResponse;
 use Psr\Log\LoggerInterface;
 
-/**
- * Class BaseController
- *
- * BaseController provides a convenient place for loading components
- * and performing functions that are needed by all your controllers.
- * Extend this class in any new controllers:
- *     class Home extends BaseController
- *
- * For security be sure to declare any new methods as protected or private.
- */
 abstract class BaseController extends Controller
 {
     /**
-     * Instance of the main Request object.
-     *
      * @var CLIRequest|IncomingRequest
      */
     protected $request;
 
-    /**
-     * An array of helpers to be loaded automatically upon
-     * class instantiation. These helpers will be available
-     * to all other controllers that extend BaseController.
-     *
-     * @var list<string>
-     */
-    protected $helpers = [];
+    protected $helpers = ['url', 'form'];
 
-    /**
-     * Be sure to declare properties for any property fetch you initialized.
-     * The creation of dynamic property is deprecated in PHP 8.2.
-     */
-    // protected $session;
-
-    /**
-     * @return void
-     */
     public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger)
     {
-        // Do Not Edit This Line
         parent::initController($request, $response, $logger);
+    }
 
-        // Preload any models, libraries, etc, here.
+    /**
+     * Rendu avec template front/admin.
+     *
+     * @param string $view    ex: 'dashboard/index', 'admin/users/index'
+     * @param array  $data
+     * @param bool   $isAdmin true = templates/admin, false = templates/front
+     */
+    protected function view(string $view, array $data = [], bool $isAdmin = false)
+    {
+        $section = $isAdmin ? 'admin' : 'front';
 
-        // E.g.: $this->session = service('session');
+        // On passe toujours l’utilisateur connecté sous 'currentUser'
+        if (! isset($data['currentUser'])) {
+            $data['currentUser'] = session('user');
+        }
+
+        $output  = view("templates/{$section}/head", $data);
+        $output .= view("templates/{$section}/header", $data);
+        $output .= view($view, $data);
+        $output .= view("templates/{$section}/footer", $data);
+
+        return $output;
+    }
+
+    /**
+     * Vérifie que l'utilisateur est connecté + admin (role_id = 1).
+     *
+     * @return array|RedirectResponse
+     */
+    protected function requireAdmin()
+    {
+        $user = session('user');
+
+        if (! $user || ! ($user['isLoggedIn'] ?? false)) {
+            return redirect()
+                ->to(base_url('login'))
+                ->with('error', 'Veuillez vous connecter.');
+        }
+
+        if ((int) ($user['role_id'] ?? 0) !== 1) {
+            return redirect()
+                ->to(base_url('/'))
+                ->with('error', 'Accès réservé aux administrateurs.');
+        }
+
+        return $user;
     }
 }
