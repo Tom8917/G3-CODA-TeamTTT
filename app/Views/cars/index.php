@@ -1,12 +1,22 @@
 <?php
 /** @var array $cars */
 /** @var array|null $currentUser */
+
+// mapping catégories (clé en BDD → label affiché)
+$categories = [
+    'all'       => 'Toutes',
+    'suv'       => 'SUV',
+    'berline'   => 'Berlines',
+    'sport'     => 'Sport',
+    'cabriolet' => 'Cabriolets',
+    'autre'     => 'Autres',
+];
 ?>
 
 <div class="mb-4 text-center">
     <h1 class="hero-title mb-2">Nos voitures de luxe</h1>
     <p class="hero-subtitle mb-0">
-        Une sélection de véhicules d’exception, prêts à être loués pour vos événements, week-ends et séjours haut de gamme.
+        Une sélection de véhicules d’exception, prêtes à être louées pour vos événements, week-ends et séjours haut de gamme.
     </p>
 </div>
 
@@ -15,10 +25,29 @@
         Aucune voiture n’est encore disponible. Revenez bientôt !
     </div>
 <?php else: ?>
-    <div class="row g-4">
+
+    <!-- 🧩 FILTRES PAR CATÉGORIE -->
+    <div class="d-flex flex-wrap justify-content-center gap-2 mb-4">
+        <?php $first = true; ?>
+        <?php foreach ($categories as $key => $label): ?>
+            <button type="button"
+                    class="btn btn-sm <?= $first ? 'btn-light' : 'btn-outline-light' ?> px-3 py-2 rounded-pill"
+                    data-category-filter="<?= esc($key) ?>">
+                <?= esc($label) ?>
+            </button>
+            <?php $first = false; ?>
+        <?php endforeach; ?>
+    </div>
+
+    <!-- LISTE DES VOITURES -->
+    <div class="row g-4" id="cars-grid">
         <?php foreach ($cars as $car): ?>
             <?php
             $rawImage = trim((string)($car['image_url'] ?? ''));
+            $categoryKey = $car['category'] ?? 'autre';
+            if (! array_key_exists($categoryKey, $categories)) {
+                $categoryKey = 'autre';
+            }
 
             // Normalisation de l’URL image
             if ($rawImage !== '' && ! preg_match('#^https?://#i', $rawImage)) {
@@ -30,7 +59,8 @@
             }
             ?>
 
-            <div class="col-12 col-md-6 col-xl-4">
+            <div class="col-12 col-md-6 col-xl-4 car-item"
+                 data-category="<?= esc($categoryKey) ?>">
                 <div class="car-card">
                     <?php if ($imageUrl !== ''): ?>
                         <div class="car-card-image-wrapper">
@@ -56,12 +86,15 @@
                         <div class="car-card-subtitle">
                             <?= esc(strtoupper($car['brand'])) ?>
                         </div>
-                        <div class="car-card-title">
-                            <?= esc($car['name']) ?>
+                        <div class="car-card-title d-flex justify-content-between align-items-center">
+                            <span><?= esc($car['name']) ?></span>
+                            <span class="badge bg-secondary-subtle text-secondary-emphasis small">
+                                <?= esc($categories[$categoryKey] ?? 'Autre') ?>
+                            </span>
                         </div>
 
                         <p class="mt-2 mb-3 small text-secondary">
-                            Véhicule haut de gamme sélectionné par LES3T pour une expérience de conduite premium.
+                            Véhicule <?= esc($categories[$categoryKey] ?? 'haut de gamme') ?> sélectionné par LES3T pour une expérience de conduite premium.
                         </p>
 
                         <div class="mt-auto d-flex justify-content-between align-items-end">
@@ -80,4 +113,41 @@
             </div>
         <?php endforeach; ?>
     </div>
+
 <?php endif; ?>
+
+<!-- 🔁 SCRIPT DE FILTRAGE -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const buttons = document.querySelectorAll('[data-category-filter]');
+        const items   = document.querySelectorAll('.car-item');
+
+        if (!buttons.length || !items.length) {
+            return;
+        }
+
+        buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const filter = btn.getAttribute('data-category-filter');
+
+                // style actif / inactif
+                buttons.forEach(b => {
+                    b.classList.remove('btn-light');
+                    b.classList.add('btn-outline-light');
+                });
+                btn.classList.add('btn-light');
+                btn.classList.remove('btn-outline-light');
+
+                items.forEach(item => {
+                    const itemCat = item.getAttribute('data-category');
+
+                    if (filter === 'all' || filter === itemCat) {
+                        item.classList.remove('d-none');
+                    } else {
+                        item.classList.add('d-none');
+                    }
+                });
+            });
+        });
+    });
+</script>
