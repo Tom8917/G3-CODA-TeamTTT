@@ -17,6 +17,7 @@ class CarModel extends Model
         'daily_price',
         'image_url',
         'is_active',
+        'category',
     ];
 
     /**
